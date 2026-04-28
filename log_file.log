@@ -60,3 +60,38 @@ INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 14:12:10] "[32mGET /departments HTTP/1
 INFO:logger:GET /departments
 INFO:logger:API v1.0 online: http://127.0.0.1:8080
 INFO:logger:API v1.0 online: http://127.0.0.1:8080
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 14:56:35] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 14:56:35] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 14:56:40] "[33mGET /user HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 14:56:52] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 14:56:59] "[33mGET /dbproj/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 14:57:04] "[31m[1mGET /dbproj/user HTTP/1.1[0m" 405 -
+INFO:logger:GET /metromondego/linhas
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 14:57:19] "GET /dbproj/linhas HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 14:57:31] "[31m[1mGET /dbproj/user HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 14:57:37] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 14:59:40] "[33mGET /dbroj/user HTTP/1.1[0m" 404 -
+INFO:werkzeug: * Detected change in 'c:\\Users\\traba\\Desktop\\Universidade\\2º Ano\\2º Semestre\\BD\\Projeto\\API\\python\\demo-api.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:00:59] "[33mGET /dbroj/user HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:01:01] "[33mGET /dbroj/user HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:01:05] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:01:11] "[31m[1mGET /dbproj/user HTTP/1.1[0m" 405 -
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:logger:API v1.0 online: http://localhost:8080

@@ -48,7 +48,7 @@ def landing_page():
 
 
 
-@app.route('/metromondego/user', methods=['PUT'])
+@app.route('/dbproj/user', methods=['PUT'])
 def login():
     logger.info('PUT /metromondego/user')
     payload = flask.request.get_json()
@@ -60,7 +60,7 @@ def login():
     cur = conn.cursor()
 
     try:
-        cur.execute('SELECT utilizadorId FROM Utilizador'
+        cur.execute('SELECT utilizadorId FROM Utilizador '
                     'WHERE email = %s AND palavraPasse = %s',
                     (payload['username'], payload['password']))
         user = cur.fetchone()
@@ -86,7 +86,7 @@ def login():
 
 
 
-@app.route('/metromondego/linhas', methods=['GET'])
+@app.route('/dbproj/linhas', methods=['GET'])
 def linhas():
     logger.info('GET /metromondego/linhas')
     token = flask.request.headers.get('Authorization')
