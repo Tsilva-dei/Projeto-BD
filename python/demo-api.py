@@ -1,10 +1,25 @@
+##
+## =============================================
+## ============== Bases de Dados ===============
+## ============== LEI  2025/2026 ===============
+## =============================================
+## =================== Demo ====================
+## =============================================
+## =============================================
+## === Department of Informatics Engineering ===
+## =========== University of Coimbra ===========
+## =============================================
+##
+## Authors:
+##   João R. Campos <jrcampos@dei.uc.pt>
+##   BD 2025/2026 Team
+##   University of Coimbra
+
+
 import flask
 import logging
 import psycopg2
-import datetime
-import jwt
-
-SECRET_KEY = "1234"
+import time
 
 app = flask.Flask(__name__)
 
@@ -22,12 +37,15 @@ def db_connection():
     db = psycopg2.connect(
         user='aulaspl',
         password='aulaspl',
-        host='localhost',
+        host='127.0.0.1',
         port='5432',
-        database='metromondego'
+        database='dbfichas'
     )
 
     return db
+
+
+
 
 ##########################################################
 ## ENDPOINTS
@@ -38,46 +56,48 @@ def db_connection():
 def landing_page():
     return """
 
-    Base de Dados - Metro Mondego<br/>
+    Hello World (Python Native)!  <br/>
     <br/>
-    API v1.0<br/>
+    Check the sources for instructions on how to use the endpoints!<br/>
     <br/>
-    Tiago Silva<br/>
+    BD 2025-2026 Team<br/>
     <br/>
     """
 
+##
+## Demo GET
+##
+## Obtain all departments in JSON format
+##
+## To use it, access:
+##
+## http://localhost:8080/departments/
+##
 
+@app.route('/departments/', methods=['GET'])
+def get_all_departments():
+    logger.info('GET /departments')
 
-@app.route('/dbproj/user', methods=['PUT'])
-def login():
-    logger.info('PUT /metromondego/user')
-    payload = flask.request.get_json()
-
-    if not payload or 'username' not in payload or 'password' not in payload:
-        return flask.jsonify({'status': StatusCodes['api_error'], 'errors': 'Credenciais em falta!'})
-    
     conn = db_connection()
     cur = conn.cursor()
 
     try:
-        cur.execute('SELECT utilizadorId FROM Utilizador '
-                    'WHERE email = %s AND palavraPasse = %s',
-                    (payload['username'], payload['password']))
-        user = cur.fetchone()
+        cur.execute('SELECT ndep, nome, local FROM dep')
+        rows = cur.fetchall()
 
-        if user: 
-            token = jwt.encode({
-                'user_id': user[0],
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)},
-                SECRET_KEY, algorithm='HS256')
-            
-            response = {'status': StatusCodes['success'], 'results': token}
-        else:
-            response = {'status': StatusCodes['api_error'], 'errors': 'Credenciais inválidas!'}
+        logger.debug('GET /departments - parse')
+        Results = []
+        for row in rows:
+            logger.debug(row)
+            content = {'ndep': int(row[0]), 'nome': row[1], 'localidade': row[2]}
+            Results.append(content)  # appending to the payload to be returned
+
+        response = {'status': StatusCodes['success'], 'results': Results}
 
     except (Exception, psycopg2.DatabaseError) as error:
-        logger.error(f'Erro no login: {error}')
+        logger.error(f'GET /departments - error: {error}')
         response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
     finally:
         if conn is not None:
             conn.close()
@@ -85,28 +105,147 @@ def login():
     return flask.jsonify(response)
 
 
+##
+## Demo GET
+##
+## Obtain department with ndep <ndep>
+##
+## To use it, access:
+##
+## http://localhost:8080/departments/10
+##
 
-@app.route('/dbproj/linhas', methods=['GET'])
-def linhas():
-    logger.info('GET /metromondego/linhas')
-    token = flask.request.headers.get('Authorization')
+@app.route('/departments/<ndep>/', methods=['GET'])
+def get_department(ndep):
+    logger.info('GET /departments/<ndep>')
 
-    if not token:
-        return flask.jsonify({'status': StatusCodes['api_error'], 'errors': 'Token de autenticação em falta!'})
-    
+    logger.debug(f'ndep: {ndep}')
+
+    conn = db_connection()
+    cur = conn.cursor()
+
     try:
-        dados_user = jwt.decode(token, SECRET_KEY, algorithms=['HS256'])
+        cur.execute('SELECT ndep, nome, local FROM dep where ndep = %s', (ndep,))
+        rows = cur.fetchall()
 
-        response = {
-            'status': StatusCodes['success'],
-            'results': f"Acesso autorizado! User ID: {dados_user['user_id']}."
-        }
-    except jwt.ExpiredSignatureError:
-        return flask.jsonify({'status': StatusCodes['api_error'], 'errors': 'Token expirado! Faça login novamente.'})
-    except jwt.InvalidTokenError:
-        return flask.jsonify({'status': StatusCodes['api_error'], 'errors': 'Token inválido!'})
-    
+        row = rows[0]
+
+        logger.debug('GET /departments/<ndep> - parse')
+        logger.debug(row)
+        content = {'ndep': int(row[0]), 'nome': row[1], 'localidade': row[2]}
+
+        response = {'status': StatusCodes['success'], 'results': content}
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(f'GET /departments/<ndep> - error: {error}')
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+    finally:
+        if conn is not None:
+            conn.close()
+
     return flask.jsonify(response)
+
+
+##
+## Demo POST
+##
+## Add a new department in a JSON payload
+##
+## To use it, you need to use postman or curl:
+##
+## curl -X POST http://localhost:8080/departments/ -H 'Content-Type: application/json' -d '{'localidade': 'Polo II', 'ndep': 100, 'nome': 'Seguranca'}'
+##
+
+@app.route('/departments/', methods=['POST'])
+def add_departments():
+    logger.info('POST /departments')
+    payload = flask.request.get_json()
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    logger.debug(f'POST /departments - payload: {payload}')
+
+    # do not forget to validate every argument, e.g.,:
+    if 'ndep' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'ndep value not in payload'}
+        return flask.jsonify(response)
+
+    # parameterized queries, good for security and performance
+    statement = 'INSERT INTO dep (ndep, nome, local) VALUES (%s, %s, %s)'
+    values = (payload['ndep'], payload['localidade'], payload['nome'])
+
+    try:
+        cur.execute(statement, values)
+
+        # commit the transaction
+        conn.commit()
+        response = {'status': StatusCodes['success'], 'results': f'Inserted dep {payload["ndep"]}'}
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(f'POST /departments - error: {error}')
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+        # an error occurred, rollback
+        conn.rollback()
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return flask.jsonify(response)
+
+
+##
+## Demo PUT
+##
+## Update a department based on a JSON payload
+##
+## To use it, you need to use postman or curl:
+##
+## curl -X PUT http://localhost:8080/departments/ -H 'Content-Type: application/json' -d '{'ndep': 100, 'localidade': 'Porto'}'
+##
+
+@app.route('/departments/<ndep>', methods=['PUT'])
+def update_departments(ndep):
+    logger.info('PUT /departments/<ndep>')
+    payload = flask.request.get_json()
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    logger.debug(f'PUT /departments/<ndep> - payload: {payload}')
+
+    # do not forget to validate every argument, e.g.,:
+    if 'localidade' not in payload:
+        response = {'status': StatusCodes['api_error'], 'results': 'localidade is required to update'}
+        return flask.jsonify(response)
+
+    # parameterized queries, good for security and performance
+    statement = 'UPDATE dep SET local = %s WHERE ndep = %s'
+    values = (payload['localidade'], ndep)
+
+    try:
+        res = cur.execute(statement, values)
+        response = {'status': StatusCodes['success'], 'results': f'Updated: {cur.rowcount}'}
+
+        # commit the transaction
+        conn.commit()
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(error)
+        response = {'status': StatusCodes['internal_error'], 'errors': str(error)}
+
+        # an error occurred, rollback
+        conn.rollback()
+
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return flask.jsonify(response)
+
 
 if __name__ == '__main__':
 
@@ -122,7 +261,7 @@ if __name__ == '__main__':
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-    host = 'localhost'
+    host = '127.0.0.1'
     port = 8080
     app.run(host=host, debug=True, threaded=True, port=port)
     logger.info(f'API v1.0 online: http://{host}:{port}')

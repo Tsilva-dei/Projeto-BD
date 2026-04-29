@@ -1,0 +1,52 @@
+{
+  "info": {
+    "_postman_id": "dcf3db63-d29f-400e-af7d-b6f15898c58a",
+    "name": "Metro Mondego",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "54378598"
+  },
+  "item": [
+    {
+      "name": "Checkpoint 1",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE3Nzc0OTM3ODd9.Ea9wbsKDhNApZk1SLr9c32DXNSxTPCkoGKTCEKBPPYU",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"username\": \"admin@metro.pt\",\r\n    \"password\": \"senha123\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8080/dbproj/authorization",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "dbproj",
+            "authorization"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

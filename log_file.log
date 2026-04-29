@@ -95,3 +95,161 @@ INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:01:05] "GET / HTTP/1.1" 200 -
 INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:01:11] "[31m[1mGET /dbproj/user HTTP/1.1[0m" 405 -
 INFO:logger:API v1.0 online: http://localhost:8080
 INFO:logger:API v1.0 online: http://localhost:8080
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:05:03] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:05:03] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:05:09] "[31m[1mGET /dbproj/user HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:05:09] "[31m[1mGET /dbproj/user HTTP/1.1[0m" 405 -
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:20:56] "[31m[1mPUT /dbproj/user HTTP/1.1[0m" 400 -
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:22:12] "[31m[1mPUT /dbproj/user HTTP/1.1[0m" 400 -
+INFO:logger:PUT /metromondego/user
+ERROR:logger:Erro no login: ERRO:  permissão negada para tabela utilizador
+
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:23:11] "PUT /dbproj/user HTTP/1.1" 200 -
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:27:00] "[33mPUT /dbroj/user HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:27:27] "[33mPUT /dbroj/user HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:27:59] "[33mPUT /dbroj/user HTTP/1.1[0m" 404 -
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:40:18] "[31m[1mPUT /dbproj/user HTTP/1.1[0m" 415 -
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:40:58] "[31m[1mPUT /dbproj/user HTTP/1.1[0m" 415 -
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:47:23] "[31m[1mPUT /dbproj/user HTTP/1.1[0m" 415 -
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:48:04] "PUT /dbproj/user HTTP/1.1" 200 -
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:50:19] "PUT /dbproj/user HTTP/1.1" 200 -
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:52:08] "[31m[1mGET /dbproj/user HTTP/1.1[0m" 405 -
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:53:20] "PUT /dbproj/user HTTP/1.1" 200 -
+INFO:logger:GET /metromondego/linhas
+INFO:werkzeug:127.0.0.1 - - [28/Apr/2026 15:55:45] "GET /dbproj/linhas HTTP/1.1" 200 -
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 14:48:12] "PUT /dbproj/user HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 14:50:25] "GET /dbproj/profile HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 14:51:19] "GET /dbproj/profile?Authorization= HTTP/1.1" 200 -
+INFO:logger:API v1.0 online: http://127.0.0.1:8080
+INFO:logger:API v1.0 online: http://127.0.0.1:8080
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+INFO:logger:API v1.0 online: http://localhost:8080
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+INFO:logger:API v1.0 online: http://localhost:8080
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 18:38:15] "PUT /dbproj/user HTTP/1.1" 200 -
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 18:38:36] "PUT /dbproj/user HTTP/1.1" 200 -
+INFO:logger:GET /dbproj/authorization
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 18:39:00] "GET /dbproj/authorization HTTP/1.1" 200 -
+INFO:logger:GET /dbproj/authorization
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 18:39:24] "GET /dbproj/authorization HTTP/1.1" 200 -
+INFO:werkzeug: * Detected change in 'c:\\Users\\traba\\Desktop\\Universidade\\2º Ano\\2º Semestre\\BD\\Projeto\\API\\python\\demo-api.py', reloading
+INFO:werkzeug: * Restarting with stat
+INFO:logger:API v1.0 online: http://localhost:8080
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:werkzeug: * Detected change in 'c:\\Users\\traba\\Desktop\\Universidade\\2º Ano\\2º Semestre\\BD\\Projeto\\API\\python\\demo-api.py', reloading
+INFO:werkzeug: * Restarting with stat
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+INFO:logger:API v1.0 online: http://localhost:8080
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 18:42:38] "PUT /dbproj/user HTTP/1.1" 200 -
+INFO:logger:GET /dbproj/authorization
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 18:43:00] "GET /dbproj/authorization HTTP/1.1" 200 -
+INFO:werkzeug: * Detected change in 'c:\\Users\\traba\\Desktop\\Universidade\\2º Ano\\2º Semestre\\BD\\Projeto\\API\\python\\demo-api.py', reloading
+INFO:werkzeug: * Restarting with stat
+INFO:logger:API v1.0 online: http://localhost:8080
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:werkzeug: * Detected change in 'c:\\Users\\traba\\Desktop\\Universidade\\2º Ano\\2º Semestre\\BD\\Projeto\\API\\python\\demo-api.py', reloading
+INFO:werkzeug: * Restarting with stat
+INFO:logger:API v1.0 online: http://localhost:8080
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:werkzeug: * Detected change in 'c:\\Users\\traba\\Desktop\\Universidade\\2º Ano\\2º Semestre\\BD\\Projeto\\API\\python\\demo-api.py', reloading
+INFO:werkzeug: * Restarting with stat
+INFO:logger:API v1.0 online: http://localhost:8080
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:logger:API v1.0 online: http://localhost:8080
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://localhost:8080
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+INFO:logger:API v1.0 online: http://localhost:8080
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 407-700-967
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 19:12:44] "PUT /dbproj/user HTTP/1.1" 200 -
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 19:13:02] "PUT /dbproj/user HTTP/1.1" 200 -
+INFO:logger:GET /dbproj/authorization
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 19:14:24] "GET /dbproj/authorization HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 19:16:17] "[31m[1mGET /dbproj/user HTTP/1.1[0m" 405 -
+INFO:logger:PUT /metromondego/user
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 19:16:27] "PUT /dbproj/user HTTP/1.1" 200 -
+INFO:logger:GET /dbproj/authorization
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 19:16:50] "GET /dbproj/authorization HTTP/1.1" 200 -
+INFO:logger:GET /dbproj/authorization
+INFO:werkzeug:127.0.0.1 - - [29/Apr/2026 19:18:05] "GET /dbproj/authorization HTTP/1.1" 200 -
