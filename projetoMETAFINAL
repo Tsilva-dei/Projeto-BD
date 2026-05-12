@@ -1,1 +1,340 @@
+##
+## =============================================
+## ============== Bases de Dados ===============
+## ============== LEI  2025/2026 ===============
+## =============================================
+## =================== Demo ====================
+## =============================================
+## =============================================
+## === Department of Informatics Engineering ===
+## =========== University of Coimbra ===========
+## =============================================
+##
+## Authors:
+##   João R. Campos <jrcampos@dei.uc.pt>
+##   BD 2025/2026 Team
+##   University of Coimbra
 
+
+import flask
+import logging
+import psycopg2
+import time
+import jwt
+from datetime import datetime, timezone, timedelta 
+
+SECRET_KEY = "projetomondego"
+
+app = flask.Flask(__name__)
+
+StatusCodes = {
+    'success': 200,
+    'api_error': 400,
+    'internal_error': 500
+}
+
+##########################################################
+## DATABASE ACCESS
+##########################################################
+
+def db_connection():
+    db = psycopg2.connect(
+        user='postgres',
+        password='2430',
+        host='127.0.0.1',
+        port='5432',
+        database='metromondego'
+    )
+
+    return db
+
+from functools import wraps
+
+# Guarda para Admins (ou Super Admins)
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token_header = flask.request.headers.get('Authorization')
+        if not token_header:
+            return flask.jsonify({"status": 401, "errors": "Token em falta"}), 401
+        token = token_header.split(" ")[1] if "Bearer" in token_header else token_header
+        try:
+            data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            if data['role'] not in ['admin', 'super_admin']:
+                return flask.jsonify({"status": 403, "errors": "Requer privilégios de Admin"}), 403
+        except:
+            return flask.jsonify({"status": 401, "errors": "Token inválido"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+# Guarda APENAS para Super Admins
+def super_admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token_header = flask.request.headers.get('Authorization')
+        token = token_header.split(" ")[1] if token_header and "Bearer" in token_header else token_header
+        try:
+            data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            if data['role'] != 'super_admin':
+                return flask.jsonify({"status": 403, "errors": "Apenas o Super Admin pode fazer isto"}), 403
+        except:
+            return flask.jsonify({"status": 401, "errors": "Não autorizado"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
+
+##########################################################
+## ENDPOINTS
+##########################################################
+
+###alteracao projeto#########################################################
+@app.route('/dbproj/user', methods=['POST'])
+def login():
+    payload = flask.request.get_json()
+    if not payload or 'email' not in payload or 'password' not in payload:
+        return flask.jsonify({"status": 400, "errors": "Faltam dados"}), 400
+
+    conn = db_connection()
+    cur = conn.cursor()
+    try:
+        # Query que identifica o papel (role) do utilizador
+        query = """
+            SELECT u.utilizadorid, u.nome, 
+                   CASE 
+                       WHEN a.super = TRUE THEN 'super_admin'
+                       WHEN a.utilizador_utilizadorid IS NOT NULL THEN 'admin'
+                       WHEN c.utilizador_utilizadorid IS NOT NULL THEN 'client'
+                       ELSE 'user'
+                   END as role
+            FROM utilizador u
+            LEFT JOIN admin a ON u.utilizadorid = a.utilizador_utilizadorid
+            LEFT JOIN cliente c ON u.utilizadorid = c.utilizador_utilizadorid
+            WHERE u.email = %s AND u.palavrapasse = %s
+        """
+        cur.execute(query, (payload['email'], payload['password']))
+        user = cur.fetchone()
+
+        if user:
+            token = jwt.encode({
+                'user_id': user[0],
+                'role': user[2], # 'client', 'admin' ou 'super_admin'
+                'exp': datetime.now(timezone.utc) + timedelta(hours=4)
+            }, SECRET_KEY, algorithm="HS256")
+            return flask.jsonify({"status": 200, "results": {"token": token, "role": user[2]}})
+        
+        return flask.jsonify({"status": 401, "errors": "Credenciais erradas"}), 401
+    finally:
+        conn.close()
+
+@app.route('/dbproj/authorization', methods=['GET'])
+def authorization():
+    logger.info('A verificar autorização do token - GET /dbproj/authorization')
+    token_header = flask.request.headers.get('Authorization')
+    
+    response = {}
+    status_code = StatusCodes['success']
+
+    if not token_header:
+        logger.warning('Tentativa de autorização falhou: token_header em falta')
+        response = {"status": StatusCodes['api_error'], "errors": "Token missing", "results": None}
+        status_code = StatusCodes['api_error']
+    else:
+        if token_header.startswith("Bearer "):
+            token = token_header.split(" ")[1]
+        else:
+            token = token_header
+
+        try:
+            data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            logger.info(f"Token validado com sucesso. Utilizador ID: {data['user_id']}")
+            response = {
+                "status": StatusCodes['success'], 
+                "errors": None, 
+                "results": f"Acesso Autorizado! És o utilizador com ID: {data['user_id']}"
+            }
+        except jwt.ExpiredSignatureError:
+            logger.warning('O token apresentado já expirou.')
+            response = {"status": StatusCodes['api_error'], "errors": "Token expired", "results": None}
+            status_code = StatusCodes['api_error']
+        except jwt.InvalidTokenError:
+            logger.error('Foi apresentado um token inválido!')
+            response = {"status": StatusCodes['api_error'], "errors": "Invalid token", "results": None}
+            status_code = StatusCodes['api_error']
+
+    return flask.jsonify(response), status_code
+
+
+# REGISTAR CLIENTE (Qualquer Admin pode)
+@app.route('/dbproj/user/client', methods=['POST'])
+@admin_required
+def register_client():
+    p = flask.request.get_json()
+    conn = db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO utilizador (nome, email, palavrapasse) VALUES (%s,%s,%s) RETURNING utilizadorid",
+                    (p['nome'], p['email'], p['password']))
+        uid = cur.fetchone()[0]
+        cur.execute("INSERT INTO cliente (saldo, nif, telemovel, idade, utilizador_utilizadorid) VALUES (0,%s,%s,%s,%s)",
+                    (p['nif'], p['telemovel'], p['idade'], uid))
+        conn.commit()
+        return flask.jsonify({"status": 201, "results": "Cliente criado"}), 201
+    except Exception as e:
+        conn.rollback()
+        return flask.jsonify({"status": 400, "errors": str(e)}), 400
+    finally: conn.close()
+
+# REGISTAR ADMIN (SÓ Super Admin pode)
+@app.route('/dbproj/user/admin', methods=['POST'])
+@super_admin_required
+def register_admin():
+    p = flask.request.get_json()
+    conn = db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO utilizador (nome, email, palavrapasse) VALUES (%s,%s,%s) RETURNING utilizadorid",
+                    (p['nome'], p['email'], p['password']))
+        uid = cur.fetchone()[0]
+        # super=False porque um admin novo não nasce super admin por defeito
+        cur.execute("INSERT INTO admin (super, numerofuncionario, utilizador_utilizadorid) VALUES (FALSE, %s, %s)",
+                    (p['num_func'], uid))
+        conn.commit()
+        return flask.jsonify({"status": 201, "results": "Novo Administrador criado"}), 201
+    except Exception as e:
+        conn.rollback()
+        return flask.jsonify({"status": 400, "errors": str(e)}), 400
+    finally: conn.close()
+
+
+@app.route('/dbproj/notice', methods=['POST'])
+@admin_required # Só admins criam avisos
+def create_notice():
+    p = flask.request.get_json()
+    conn = db_connection()
+    cur = conn.cursor()
+    try:
+        # 1. Inserir o aviso
+        # Nota: admin_id deve vir do token para saber quem criou
+        token = flask.request.headers.get('Authorization').split(" ")[1]
+        data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        admin_id = data['user_id']
+
+        cur.execute("""
+            INSERT INTO aviso (titulo, mensagem, datacriacao, avisoglobal, admin_utilizador_utilizadorid)
+            VALUES (%s, %s, CURRENT_DATE, %s, %s) RETURNING avisoid
+        """, (p['titulo'], p['mensagem'], p['global'], admin_id))
+        
+        aviso_id = cur.fetchone()[0]
+
+        # 2. Se NÃO for global, associar ao cliente específico
+        if not p['global'] and 'cliente_id' in p:
+            cur.execute("""
+                INSERT INTO clienteaviso (lido, aviso_avisoid, cliente_utilizador_utilizadorid)
+                VALUES (FALSE, %s, %s)
+            """, (aviso_id, p['cliente_id']))
+
+        conn.commit()
+        return flask.jsonify({"status": 201, "results": "Aviso criado com sucesso"}), 201
+    except Exception as e:
+        conn.rollback()
+        return flask.jsonify({"status": 400, "errors": str(e)}), 400
+    finally: conn.close()
+
+
+@app.route('/dbproj/line/<int:line_id>', methods=['PUT'])
+@admin_required
+def toggle_line(line_id):
+    p = flask.request.get_json() # Espera {"aberta": true/false}
+    conn = db_connection()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE linha SET aberta = %s WHERE linhaid = %s", (p['aberta'], line_id))
+        conn.commit()
+        return flask.jsonify({"status": 200, "results": f"Linha {line_id} atualizada"}), 200
+    except Exception as e:
+        conn.rollback()
+        return flask.jsonify({"status": 400, "errors": str(e)}), 400
+    finally: conn.close()
+################################################
+
+
+##
+## Demo GET
+##
+## Obtain all utilizadores in JSON format
+##
+## To use it, access:
+##
+## http://localhost:8080/utilizador/
+##
+
+#alteracao projeto#########################################################
+@app.route('/utilizador/', methods=['GET'])
+def get_users():
+    logger.info('Solicitada listagem de utilizadores - GET /utilizador/')
+    
+    response = {}
+    status_code = StatusCodes['success']
+    conn = None
+
+    try:
+        conn = db_connection()
+        cur = conn.cursor()
+       
+        cur.execute("SELECT utilizadorid, nome, email FROM utilizador")
+        rows = cur.fetchall()
+
+        logger.info(f'Query executada. Encontrados {len(rows)} utilizadores.')
+
+        resultado = []
+        for row in rows:
+            resultado.append({
+                "id": row[0],
+                "nome": row[1],
+                "email": row[2]
+            })
+
+        response = {
+            "status": StatusCodes['success'],
+            "errors": None,
+            "results": resultado
+        }
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        logger.error(f'Erro ao listar utilizadores: {error}')
+        
+        response = {
+            "status": StatusCodes['internal_error'], 
+            "errors": str(error),
+            "results": None
+        }
+        status_code = StatusCodes['internal_error']
+
+    finally:
+        if conn is not None:
+            cur.close()
+            conn.close()
+
+    return flask.jsonify(response), status_code
+
+
+
+if __name__ == '__main__':
+
+    # set up logging
+    logging.basicConfig(filename='log_file.log')
+    logger = logging.getLogger('logger')
+    logger.setLevel(logging.DEBUG)
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.DEBUG)
+
+    # create formatter
+    formatter = logging.Formatter('%(asctime)s [%(levelname)s]:  %(message)s', '%H:%M:%S')
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    host = '127.0.0.1'
+    port = 8080
+    app.run(host=host, debug=True, threaded=True, port=port)
+    logger.info(f'API v1.0 online: http://{host}:{port}')
