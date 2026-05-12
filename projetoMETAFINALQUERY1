@@ -1,0 +1,178 @@
+CREATE TABLE estacao (
+	estacaoid BIGINT NOT NULL,
+	nome	 VARCHAR(512) NOT NULL,
+	PRIMARY KEY(estacaoid)
+);
+
+CREATE TABLE estacaolinha (
+	ordem		 BIGINT NOT NULL,
+	linha_linhaid	 BIGINT,
+	estacao_estacaoid BIGINT,
+	PRIMARY KEY(linha_linhaid,estacao_estacaoid)
+);
+
+CREATE TABLE utilizador (
+	utilizadorid BIGINT NOT NULL,
+	nome	 VARCHAR(512) NOT NULL,
+	email	 VARCHAR(512) NOT NULL,
+	palavrapasse VARCHAR(512) NOT NULL,
+	PRIMARY KEY(utilizadorid)
+);
+
+CREATE TABLE cliente (
+	saldo			 NUMERIC(8,2) NOT NULL,
+	nif			 VARCHAR(512) NOT NULL,
+	telemovel		 VARCHAR(512) NOT NULL,
+	idade			 INTEGER NOT NULL,
+	utilizador_utilizadorid BIGINT NOT NULL,
+	PRIMARY KEY(utilizador_utilizadorid)
+);
+
+CREATE TABLE viagem (
+	viagemid	 BIGINT NOT NULL,
+	datapartida	 TIMESTAMP NOT NULL,
+	capacidademax BIGINT NOT NULL,
+	sentido	 VARCHAR(512) NOT NULL,
+	ocupacaoatual BIGINT NOT NULL,
+	linha_linhaid BIGINT NOT NULL,
+	PRIMARY KEY(viagemid)
+);
+
+CREATE TABLE bilhete (
+	bilheteid		 BIGINT NOT NULL,
+	validode			 TIMESTAMP,
+	validoate		 TIMESTAMP,
+	estado			 VARCHAR(512) NOT NULL,
+	tipobilhete_tipobilheteid BIGINT NOT NULL,
+	compra_compraid		 BIGINT NOT NULL,
+	PRIMARY KEY(bilheteid)
+);
+
+CREATE TABLE compra (
+	compraid			 BIGINT NOT NULL,
+	datacompra			 TIMESTAMP NOT NULL,
+	precofinal			 NUMERIC(8,2) NOT NULL,
+	estado				 VARCHAR(512) NOT NULL,
+	cliente_utilizador_utilizadorid BIGINT NOT NULL,
+	PRIMARY KEY(compraid)
+);
+
+CREATE TABLE preco (
+	precoid			 BIGINT NOT NULL,
+	preco			 NUMERIC(8,2) NOT NULL,
+	datainicio		 DATE NOT NULL,
+	datafim			 DATE NOT NULL,
+	tipobilhete_tipobilheteid BIGINT,
+	PRIMARY KEY(precoid,tipobilhete_tipobilheteid)
+);
+
+CREATE TABLE linha (
+	linhaid	 BIGINT NOT NULL,
+	nome		 VARCHAR(512) NOT NULL,
+	frequenciamin INTEGER NOT NULL,
+	aberta	 BOOL NOT NULL,
+	horaabertura	 TIMESTAMP NOT NULL,
+	horafechar	 TIMESTAMP NOT NULL,
+	PRIMARY KEY(linhaid)
+);
+
+CREATE TABLE promocao (
+	promocaoid		 BIGINT NOT NULL,
+	desconto			 BIGINT NOT NULL,
+	datainicio		 DATE NOT NULL,
+	datafim			 DATE NOT NULL,
+	nome			 VARCHAR(512) NOT NULL,
+	tipobilhete_tipobilheteid BIGINT NOT NULL,
+	linha_linhaid		 BIGINT NOT NULL,
+	PRIMARY KEY(promocaoid)
+);
+
+CREATE TABLE validacao (
+	validacaoid	 BIGINT NOT NULL,
+	usadoa		 TIMESTAMP NOT NULL,
+	estacao_estacaoid BIGINT NOT NULL,
+	bilhete_bilheteid BIGINT NOT NULL,
+	viagem_viagemid	 BIGINT NOT NULL,
+	PRIMARY KEY(validacaoid)
+);
+
+CREATE TABLE transacao (
+	transacaoid			 BIGINT NOT NULL,
+	valor				 NUMERIC(8,2) NOT NULL,
+	tipotransacao			 VARCHAR(512) NOT NULL,
+	datatransacao			 TIMESTAMP NOT NULL,
+	estado				 VARCHAR(512) NOT NULL,
+	cliente_utilizador_utilizadorid BIGINT NOT NULL,
+	PRIMARY KEY(transacaoid)
+);
+
+CREATE TABLE aviso (
+	avisoid			 BIGINT NOT NULL,
+	titulo			 VARCHAR(512) NOT NULL,
+	mensagem			 VARCHAR(512) NOT NULL,
+	datacriacao			 DATE NOT NULL,
+	avisoglobal			 BOOL NOT NULL,
+	admin_utilizador_utilizadorid BIGINT NOT NULL,
+	PRIMARY KEY(avisoid)
+);
+
+CREATE TABLE clienteaviso (
+	lido				 BOOL NOT NULL DEFAULT FALSE,
+	aviso_avisoid			 BIGINT,
+	cliente_utilizador_utilizadorid BIGINT,
+	PRIMARY KEY(aviso_avisoid,cliente_utilizador_utilizadorid)
+);
+
+CREATE TABLE tipobilhete (
+	tipobilheteid BIGINT NOT NULL,
+	nome		 VARCHAR(512) NOT NULL,
+	categoria	 VARCHAR(512) NOT NULL,
+	PRIMARY KEY(tipobilheteid)
+);
+
+CREATE TABLE admin (
+	super			 BOOL NOT NULL,
+	numerofuncionario	 BIGINT NOT NULL,
+	utilizador_utilizadorid BIGINT NOT NULL,
+	PRIMARY KEY(utilizador_utilizadorid)
+);
+
+CREATE TABLE compra_transacao (
+	compra_compraid	 BIGINT NOT NULL,
+	transacao_transacaoid BIGINT,
+	PRIMARY KEY(transacao_transacaoid)
+);
+
+ALTER TABLE estacao ADD UNIQUE (nome);
+ALTER TABLE estacaolinha ADD CONSTRAINT estacaolinha_fk1 FOREIGN KEY (linha_linhaid) REFERENCES linha(linhaid);
+ALTER TABLE estacaolinha ADD CONSTRAINT estacaolinha_fk2 FOREIGN KEY (estacao_estacaoid) REFERENCES estacao(estacaoid);
+ALTER TABLE estacaolinha ADD CONSTRAINT checkOrdemPositiva CHECK (ordem > 0);
+ALTER TABLE utilizador ADD UNIQUE (email);
+ALTER TABLE cliente ADD UNIQUE (nif, telemovel);
+ALTER TABLE cliente ADD CONSTRAINT cliente_fk1 FOREIGN KEY (utilizador_utilizadorid) REFERENCES utilizador(utilizadorid);
+ALTER TABLE cliente ADD CONSTRAINT checkIdade CHECK (idade >= 0 AND idade < 120);
+ALTER TABLE cliente ADD CONSTRAINT checkSaldoPositivo CHECK (saldo >= 0);
+ALTER TABLE viagem ADD CONSTRAINT viagem_fk1 FOREIGN KEY (linha_linhaid) REFERENCES linha(linhaid);
+ALTER TABLE viagem ADD CONSTRAINT checkOcupacaoLimite CHECK (ocupacaoAtual >= 0 AND ocupacaoAtual <= capacidadeMax);
+ALTER TABLE bilhete ADD CONSTRAINT bilhete_fk1 FOREIGN KEY (tipobilhete_tipobilheteid) REFERENCES tipobilhete(tipobilheteid);
+ALTER TABLE bilhete ADD CONSTRAINT bilhete_fk2 FOREIGN KEY (compra_compraid) REFERENCES compra(compraid);
+ALTER TABLE bilhete ADD CONSTRAINT checkValidade CHECK (validoAte >= validoDe);
+ALTER TABLE compra ADD CONSTRAINT compra_fk1 FOREIGN KEY (cliente_utilizador_utilizadorid) REFERENCES cliente(utilizador_utilizadorid);
+ALTER TABLE preco ADD CONSTRAINT preco_fk1 FOREIGN KEY (tipobilhete_tipobilheteid) REFERENCES tipobilhete(tipobilheteid);
+ALTER TABLE linha ADD UNIQUE (nome);
+ALTER TABLE linha ADD CONSTRAINT checkHorario CHECK (horaFechar > horaAbertura);
+ALTER TABLE promocao ADD CONSTRAINT promocao_fk1 FOREIGN KEY (tipobilhete_tipobilheteid) REFERENCES tipobilhete(tipobilheteid);
+ALTER TABLE promocao ADD CONSTRAINT promocao_fk2 FOREIGN KEY (linha_linhaid) REFERENCES linha(linhaid);
+ALTER TABLE validacao ADD CONSTRAINT validacao_fk1 FOREIGN KEY (estacao_estacaoid) REFERENCES estacao(estacaoid);
+ALTER TABLE validacao ADD CONSTRAINT validacao_fk2 FOREIGN KEY (bilhete_bilheteid) REFERENCES bilhete(bilheteid);
+ALTER TABLE validacao ADD CONSTRAINT validacao_fk3 FOREIGN KEY (viagem_viagemid) REFERENCES viagem(viagemid);
+ALTER TABLE transacao ADD CONSTRAINT transacao_fk1 FOREIGN KEY (cliente_utilizador_utilizadorid) REFERENCES cliente(utilizador_utilizadorid);
+ALTER TABLE aviso ADD CONSTRAINT aviso_fk1 FOREIGN KEY (admin_utilizador_utilizadorid) REFERENCES admin(utilizador_utilizadorid);
+ALTER TABLE clienteaviso ADD CONSTRAINT clienteaviso_fk1 FOREIGN KEY (aviso_avisoid) REFERENCES aviso(avisoid);
+ALTER TABLE clienteaviso ADD CONSTRAINT clienteaviso_fk2 FOREIGN KEY (cliente_utilizador_utilizadorid) REFERENCES cliente(utilizador_utilizadorid);
+ALTER TABLE tipobilhete ADD UNIQUE (nome);
+ALTER TABLE admin ADD CONSTRAINT admin_fk1 FOREIGN KEY (utilizador_utilizadorid) REFERENCES utilizador(utilizadorid);
+ALTER TABLE compra_transacao ADD CONSTRAINT compra_transacao_fk1 FOREIGN KEY (compra_compraid) REFERENCES compra(compraid);
+ALTER TABLE compra_transacao ADD CONSTRAINT compra_transacao_fk2 FOREIGN KEY (transacao_transacaoid) REFERENCES transacao(transacaoid);
+
+
