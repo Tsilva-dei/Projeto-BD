@@ -40,7 +40,7 @@ StatusCodes = {
 def db_connection():
     db = psycopg2.connect(
         user='postgres',
-        password='2430',
+        password='1234',
         host='127.0.0.1',
         port='5432',
         database='metromondego'
@@ -89,7 +89,7 @@ def super_admin_required(f):
 ##########################################################
 
 ###alteracao projeto#########################################################
-@app.route('/dbproj/user', methods=['POST'])
+@app.route('/dbproj/user', methods=['PUT'])
 def login():
     payload = flask.request.get_json()
     if not payload or 'email' not in payload or 'password' not in payload:
@@ -166,7 +166,7 @@ def authorization():
 
 
 # REGISTAR CLIENTE (Qualquer Admin pode)
-@app.route('/dbproj/user/client', methods=['POST'])
+@app.route('/dbproj/register/customer', methods=['POST'])
 @admin_required
 def register_client():
     p = flask.request.get_json()
@@ -186,7 +186,7 @@ def register_client():
     finally: conn.close()
 
 # REGISTAR ADMIN (SÓ Super Admin pode)
-@app.route('/dbproj/user/admin', methods=['POST'])
+@app.route('/dbproj/register/admin', methods=['PUT'])
 @super_admin_required
 def register_admin():
     p = flask.request.get_json()
@@ -207,7 +207,7 @@ def register_admin():
     finally: conn.close()
 
 
-@app.route('/dbproj/notice', methods=['POST'])
+@app.route('/dbproj/notices/broadcast', methods=['POST'])
 @admin_required # Só admins criam avisos
 def create_notice():
     p = flask.request.get_json()
@@ -242,20 +242,34 @@ def create_notice():
     finally: conn.close()
 
 
-@app.route('/dbproj/line/<int:line_id>', methods=['PUT'])
+@app.route('/dbproj/line_operation/<int:line_id>', methods=['PUT'])
 @admin_required
-def toggle_line(line_id):
-    p = flask.request.get_json() # Espera {"aberta": true/false}
+def update_line_operation(line_id):
+    p = flask.request.get_json()
     conn = db_connection()
     cur = conn.cursor()
     try:
-        cur.execute("UPDATE linha SET aberta = %s WHERE linhaid = %s", (p['aberta'], line_id))
+        query = """
+            UPDATE linha 
+            SET horaabertura = CURRENT_DATE + %s::time, 
+                horafechar = CURRENT_DATE + %s::time, 
+                frequenciamin = %s
+            WHERE linhaid = %s
+        """
+        cur.execute(query, (p['start_time'], p['end_time'], p['frequency_minutes'], line_id))
+        
+        # Se nenhuma linha foi alterada (ex: linha 99 não existe)
+        if cur.rowcount == 0:
+            return flask.jsonify({"status": 404, "errors": "Linha não encontrada"}), 404
+
         conn.commit()
-        return flask.jsonify({"status": 200, "results": f"Linha {line_id} atualizada"}), 200
+        return flask.jsonify({"status": 200, "errors": None}), 200
+        
     except Exception as e:
         conn.rollback()
         return flask.jsonify({"status": 400, "errors": str(e)}), 400
-    finally: conn.close()
+    finally: 
+        conn.close()
 ################################################
 
 
@@ -318,6 +332,52 @@ def get_users():
 
     return flask.jsonify(response), status_code
 
+# CARREGAR SALDO (Wallet)
+@app.route('/dbproj/user/wallet', methods=['PUT'])
+def charge_wallet():
+    # 1. Validar o Token e extrair o ID do utilizador
+    token_header = flask.request.headers.get('Authorization')
+    if not token_header:
+        return flask.jsonify({"status": 401, "errors": "Token em falta"}), 401
+    
+    token = token_header.split(" ")[1] if "Bearer" in token_header else token_header
+    try:
+        data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        user_id = data['user_id']
+        role = data['role']
+        
+        if role != 'client':
+            return flask.jsonify({"status": 403, "errors": "Apenas clientes têm carteira digital"}), 403
+            
+    except:
+        return flask.jsonify({"status": 401, "errors": "Token inválido"}), 401
+
+    # 2. Obter o valor do carregamento
+    p = flask.request.get_json()
+    if 'valor' not in p or p['valor'] <= 0:
+        return flask.jsonify({"status": 400, "errors": "Valor inválido"}), 400
+
+    conn = db_connection()
+    cur = conn.cursor()
+    try:
+        # 3. Atualizar o saldo na tabela cliente
+        cur.execute("UPDATE cliente SET saldo = saldo + %s WHERE utilizador_utilizadorid = %s RETURNING saldo",
+                    (p['valor'], user_id))
+        novo_saldo = cur.fetchone()[0]
+
+        # 4. Registar a transação para o histórico (exigido no modelo de dados)
+        cur.execute("""
+            INSERT INTO transacao (valor, tipotransacao, datatransacao, estado, cliente_utilizador_utilizadorid) 
+            VALUES (%s, 'Carregamento', CURRENT_TIMESTAMP, 'Concluida', %s)
+        """, (p['valor'], user_id))
+
+        conn.commit()
+        return flask.jsonify({"status": 200, "results": {"novo_saldo": float(novo_saldo)}}), 200
+    except Exception as e:
+        conn.rollback()
+        return flask.jsonify({"status": 400, "errors": str(e)}), 400
+    finally:
+        conn.close()
 
 
 if __name__ == '__main__':
