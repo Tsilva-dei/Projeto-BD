@@ -40,7 +40,7 @@ StatusCodes = {
 def db_connection():
     db = psycopg2.connect(
         user='postgres',
-        password='1234',
+        password='2430',
         host='127.0.0.1',
         port='5432',
         database='metromondego'
@@ -258,7 +258,7 @@ def update_line_operation(line_id):
         """
         cur.execute(query, (p['start_time'], p['end_time'], p['frequency_minutes'], line_id))
         
-        # Se nenhuma linha foi alterada (ex: linha 99 não existe)
+        # Se nenhuma linha foi alterada 
         if cur.rowcount == 0:
             return flask.jsonify({"status": 404, "errors": "Linha não encontrada"}), 404
 
@@ -269,6 +269,130 @@ def update_line_operation(line_id):
         conn.rollback()
         return flask.jsonify({"status": 400, "errors": str(e)}), 400
     finally: 
+        conn.close()
+
+
+@app.route('/dbproj/purchase', methods=['POST'])
+def purchase_ticket():
+
+    token_header = flask.request.headers.get('Authorization')
+
+    if not token_header:
+        return flask.jsonify({"status": 401, "errors": "Token em falta"}), 401
+
+    token = token_header.split(" ")[1] if "Bearer" in token_header else token_header
+
+    try:
+        data = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        user_id = data['user_id']
+
+        if data['role'] != 'client':
+            return flask.jsonify({"status": 403, "errors": "Só clientes podem comprar"}), 403
+
+    except:
+        return flask.jsonify({"status": 401, "errors": "Token inválido"}), 401
+
+    p = flask.request.get_json()
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    try:
+
+        # preço do bilhete
+        cur.execute("""
+            SELECT preco.preco, tipobilhete.tipobilheteid
+            FROM preco
+            JOIN tipobilhete
+            ON preco.tipobilhete_tipobilheteid = tipobilhete.tipobilheteid
+            WHERE tipobilhete.nome = %s
+            AND CURRENT_DATE BETWEEN preco.datainicio AND preco.datafim
+        """, (p['product_type'],))
+
+        result = cur.fetchone()
+
+        if not result:
+            return flask.jsonify({"status": 400, "errors": "Tipo inválido"}), 400
+
+        preco = float(result[0])
+        tipo_id = result[1]
+
+        # lock saldo
+        cur.execute("""
+            SELECT saldo
+            FROM cliente
+            WHERE utilizador_utilizadorid = %s
+            FOR UPDATE
+        """, (user_id,))
+
+        saldo = float(cur.fetchone()[0])
+
+        if saldo < preco:
+            return flask.jsonify({"status": 400, "errors": "Saldo insuficiente"}), 400
+
+        # atualizar saldo
+        cur.execute("""
+            UPDATE cliente
+            SET saldo = saldo - %s
+            WHERE utilizador_utilizadorid = %s
+        """, (preco, user_id))
+
+        # criar compra
+        cur.execute("""
+            INSERT INTO compra (
+                datacompra,
+                precofinal,
+                estado,
+                cliente_utilizador_utilizadorid
+            )
+            VALUES (
+                CURRENT_TIMESTAMP,
+                %s,
+                'Concluida',
+                %s
+            )
+            RETURNING compraid
+        """, (preco, user_id))
+
+        compra_id = cur.fetchone()[0]
+
+        # criar bilhete
+        cur.execute("""
+            INSERT INTO bilhete (
+                validode,
+                validoate,
+                estado,
+                tipobilhete_tipobilheteid,
+                compra_compraid
+            )
+            VALUES (
+                CURRENT_TIMESTAMP,
+                CURRENT_TIMESTAMP + INTERVAL '1 day',
+                'Valido',
+                %s,
+                %s
+            )
+            RETURNING bilheteid
+        """, (tipo_id, compra_id))
+
+        bilhete_id = cur.fetchone()[0]
+
+        conn.commit()
+
+        return flask.jsonify({
+            "status": 200,
+            "results": {
+                "purchase_id": compra_id,
+                "ticket_id": bilhete_id,
+                "final_price": preco
+            }
+        }), 200
+
+    except Exception as e:
+        conn.rollback()
+        return flask.jsonify({"status": 500, "errors": str(e)}), 500
+
+    finally:
         conn.close()
 ################################################
 
@@ -394,7 +518,5 @@ if __name__ == '__main__':
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-    host = '127.0.0.1'
-    port = 8080
-    app.run(host=host, debug=True, threaded=True, port=port)
-    logger.info(f'API v1.0 online: http://{host}:{port}')
+    app.run(debug=True, threaded=True, port=8080)
+    logger.info('API v1.0 online: http://localhost:8080')
