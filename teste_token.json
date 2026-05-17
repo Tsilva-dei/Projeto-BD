@@ -1,4 +1,33 @@
 {
-    "username": "admin@metro.pt",
-    "password": "senha123"
+    "admin":
+    {
+        "email": "rafael@mail.com",
+        "password": "1234"
+    }
+    ,
+
+    "cliente": 
+    {
+        "email": "tiago@mail.com",
+        "password": "1234"
+    }
+    ,
+
+    "Atualizar preço":
+    {
+    "price": 1.80,
+    "effective_from": "2026-06-01"
+    }
+    ,
+
+    "Promoção":
+    {
+    "name": "School Holidays",
+    "line_id": 1,
+    "product_type": "daily",
+    "discount_percent": 20,
+    "start_date": "2026-07-01",
+    "end_date": "2026-07-31"
+    }
+    
 }
