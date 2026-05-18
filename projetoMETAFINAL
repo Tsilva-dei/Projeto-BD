@@ -278,7 +278,10 @@ def purchase_ticket():
     token_header = flask.request.headers.get('Authorization')
 
     if not token_header:
-        return flask.jsonify({"status": 401, "errors": "Token em falta"}), 401
+        return flask.jsonify({
+            "status": 401,
+            "errors": "Token em falta"
+        }), 401
 
     token = token_header.split(" ")[1] if "Bearer" in token_header else token_header
 
@@ -287,24 +290,48 @@ def purchase_ticket():
         user_id = data['user_id']
 
         if data['role'] != 'client':
-            return flask.jsonify({"status": 403, "errors": "Só clientes podem comprar"}), 403
+            return flask.jsonify({
+                "status": 403,
+                "errors": "Só clientes podem comprar"
+            }), 403
 
-    except:
-        return flask.jsonify({"status": 401, "errors": "Token inválido"}), 401
+    except jwt.ExpiredSignatureError:
+        return flask.jsonify({
+            "status": 401,
+            "errors": "Token expirado"
+        }), 401
+
+    except jwt.InvalidTokenError:
+        return flask.jsonify({
+            "status": 401,
+            "errors": "Token inválido"
+        }), 401
 
     p = flask.request.get_json()
+
+    # validação básica
+    required_fields = ['line_id', 'product_type', 'travel_date']
+
+    for field in required_fields:
+        if field not in p:
+            return flask.jsonify({
+                "status": 400,
+                "errors": f"Campo obrigatório em falta: {field}"
+            }), 400
 
     conn = db_connection()
     cur = conn.cursor()
 
     try:
 
-        # preço do bilhete
+        # 1 obter preço base + tipo de bilhete
         cur.execute("""
-            SELECT preco.preco, tipobilhete.tipobilheteid
+            SELECT 
+                preco.preco,
+                tipobilhete.tipobilheteid
             FROM preco
             JOIN tipobilhete
-            ON preco.tipobilhete_tipobilheteid = tipobilhete.tipobilheteid
+                ON preco.tipobilhete_tipobilheteid = tipobilhete.tipobilheteid
             WHERE tipobilhete.nome = %s
             AND CURRENT_DATE BETWEEN preco.datainicio AND preco.datafim
         """, (p['product_type'],))
@@ -312,12 +339,34 @@ def purchase_ticket():
         result = cur.fetchone()
 
         if not result:
-            return flask.jsonify({"status": 400, "errors": "Tipo inválido"}), 400
+            return flask.jsonify({
+                "status": 400,
+                "errors": "Tipo de bilhete inválido"
+            }), 400
 
-        preco = float(result[0])
+        preco_base = float(result[0])
         tipo_id = result[1]
 
-        # lock saldo
+        # 2 verificar promoçoes ativas
+        cur.execute("""
+            SELECT COALESCE(MAX(desconto), 0)
+            FROM promocao
+            WHERE linha_linhaid = %s
+            AND tipobilhete_tipobilheteid = %s
+            AND CURRENT_DATE BETWEEN datainicio AND datafim
+        """, (p['line_id'], tipo_id))
+
+        desconto = float(cur.fetchone()[0])
+
+        
+        # 3 calcular preço final
+        preco_final = round(
+            preco_base * (1 - desconto / 100),
+            2
+        )
+
+
+        # 4. lock do saldo
         cur.execute("""
             SELECT saldo
             FROM cliente
@@ -325,19 +374,34 @@ def purchase_ticket():
             FOR UPDATE
         """, (user_id,))
 
-        saldo = float(cur.fetchone()[0])
+        saldo_result = cur.fetchone()
 
-        if saldo < preco:
-            return flask.jsonify({"status": 400, "errors": "Saldo insuficiente"}), 400
+        if not saldo_result:
+            return flask.jsonify({
+                "status": 404,
+                "errors": "Cliente não encontrado"
+            }), 404
 
-        # atualizar saldo
+        saldo = float(saldo_result[0])
+
+        # 5 verificar saldo 
+
+        if saldo < preco_final:
+            return flask.jsonify({
+                "status": 400,
+                "errors": "Saldo insuficiente"
+            }), 400
+
+        # 6 descontar saldo
+
         cur.execute("""
             UPDATE cliente
             SET saldo = saldo - %s
             WHERE utilizador_utilizadorid = %s
-        """, (preco, user_id))
+        """, (preco_final, user_id))
 
-        # criar compra
+        # 7 criar compra
+
         cur.execute("""
             INSERT INTO compra (
                 datacompra,
@@ -352,12 +416,29 @@ def purchase_ticket():
                 %s
             )
             RETURNING compraid
-        """, (preco, user_id))
+        """, (preco_final, user_id))
 
         compra_id = cur.fetchone()[0]
 
-        # criar bilhete
-        cur.execute("""
+        # 8 definir validade do bilhete
+
+        product_type = p['product_type'].lower()
+
+        if product_type == 'single trip':
+            validade = "1 day"
+
+        elif product_type == 'daily pass':
+            validade = "1 day"
+
+        elif product_type == 'monthly pass':
+            validade = "30 days"
+
+        else:
+            validade = "1 day"
+
+        # 9 criar bilhete
+
+        cur.execute(f"""
             INSERT INTO bilhete (
                 validode,
                 validoate,
@@ -367,7 +448,7 @@ def purchase_ticket():
             )
             VALUES (
                 CURRENT_TIMESTAMP,
-                CURRENT_TIMESTAMP + INTERVAL '1 day',
+                CURRENT_TIMESTAMP + INTERVAL '{validade}',
                 'Valido',
                 %s,
                 %s
@@ -377,20 +458,125 @@ def purchase_ticket():
 
         bilhete_id = cur.fetchone()[0]
 
+        # 10 registar transação
+        cur.execute("""
+            INSERT INTO transacao (
+                valor,
+                tipotransacao,
+                datatransacao,
+                estado,
+                cliente_utilizador_utilizadorid
+            )
+            VALUES (
+                %s,
+                'Compra',
+                CURRENT_TIMESTAMP,
+                'Concluida',
+                %s
+            )
+            RETURNING transacaoid
+        """, (preco_final, user_id))
+
+        transacao_id = cur.fetchone()[0]
+
+
+        # 11 associar compra à transação
+
+        cur.execute("""
+            INSERT INTO compra_transacao (
+                compra_compraid,
+                transacao_transacaoid
+            )
+            VALUES (%s, %s)
+        """, (compra_id, transacao_id))
+
+        # 12 commit
+
         conn.commit()
 
         return flask.jsonify({
             "status": 200,
+            "errors": None,
             "results": {
                 "purchase_id": compra_id,
                 "ticket_id": bilhete_id,
-                "final_price": preco
+                "base_price": preco_base,
+                "discount_percent": desconto,
+                "final_price": preco_final
             }
         }), 200
 
     except Exception as e:
+
         conn.rollback()
-        return flask.jsonify({"status": 500, "errors": str(e)}), 500
+
+        return flask.jsonify({
+            "status": 500,
+            "errors": str(e)
+        }), 500
+
+    finally:
+        conn.close()
+
+@app.route('/dbproj/line/status/<int:line_id>', methods=['PUT'])
+@admin_required
+def update_line_status(line_id):
+
+    p = flask.request.get_json()
+
+    if not p or 'open' not in p:
+        return flask.jsonify({
+            "status": 400,
+            "errors": "Campo 'open' é obrigatório"
+        }), 400
+
+    conn = db_connection()
+    cur = conn.cursor()
+
+    try:
+
+        ####################################################
+        # atualizar estado da linha
+        ####################################################
+
+        cur.execute("""
+            UPDATE linha
+            SET aberta = %s
+            WHERE linhaid = %s
+        """, (p['open'], line_id))
+
+        ####################################################
+        # linha não encontrada
+        ####################################################
+
+        if cur.rowcount == 0:
+            return flask.jsonify({
+                "status": 404,
+                "errors": "Linha não encontrada"
+            }), 404
+
+        ####################################################
+        # commit
+        ####################################################
+
+        conn.commit()
+
+        estado = "aberta" if p['open'] else "fechada"
+
+        return flask.jsonify({
+            "status": 200,
+            "errors": None,
+            "results": f"Linha {line_id} foi {estado} com sucesso"
+        }), 200
+
+    except Exception as e:
+
+        conn.rollback()
+
+        return flask.jsonify({
+            "status": 500,
+            "errors": str(e)
+        }), 500
 
     finally:
         conn.close()
