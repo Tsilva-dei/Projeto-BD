@@ -20,7 +20,7 @@ CREATE TABLE utilizador (
 );
 
 CREATE TABLE cliente (
-	saldo			 NUMERIC(8,2) NOT NULL,
+	saldo			 FLOAT(8) NOT NULL,
 	nif			 VARCHAR(512) NOT NULL,
 	telemovel		 VARCHAR(512) NOT NULL,
 	idade			 INTEGER NOT NULL,
@@ -51,15 +51,16 @@ CREATE TABLE bilhete (
 CREATE TABLE compra (
 	compraid			 BIGINT NOT NULL,
 	datacompra			 TIMESTAMP NOT NULL,
-	precofinal			 NUMERIC(8,2) NOT NULL,
+	precofinal			 FLOAT(8) NOT NULL,
 	estado				 VARCHAR(512) NOT NULL,
+	linha_linhaid			 BIGINT NOT NULL,
 	cliente_utilizador_utilizadorid BIGINT NOT NULL,
 	PRIMARY KEY(compraid)
 );
 
 CREATE TABLE preco (
 	precoid			 BIGINT NOT NULL,
-	preco			 NUMERIC(8,2) NOT NULL,
+	preco			 FLOAT(8) NOT NULL,
 	datainicio		 DATE NOT NULL,
 	datafim			 DATE NOT NULL,
 	tipobilhete_tipobilheteid BIGINT,
@@ -98,7 +99,7 @@ CREATE TABLE validacao (
 
 CREATE TABLE transacao (
 	transacaoid			 BIGINT NOT NULL,
-	valor				 NUMERIC(8,2) NOT NULL,
+	valor				 FLOAT(8) NOT NULL,
 	tipotransacao			 VARCHAR(512) NOT NULL,
 	datatransacao			 TIMESTAMP NOT NULL,
 	estado				 VARCHAR(512) NOT NULL,
@@ -117,7 +118,7 @@ CREATE TABLE aviso (
 );
 
 CREATE TABLE clienteaviso (
-	lido				 BOOL NOT NULL DEFAULT FALSE,
+	lido				 BOOL NOT NULL DEFAULT False,
 	aviso_avisoid			 BIGINT,
 	cliente_utilizador_utilizadorid BIGINT,
 	PRIMARY KEY(aviso_avisoid,cliente_utilizador_utilizadorid)
@@ -157,7 +158,8 @@ ALTER TABLE viagem ADD CONSTRAINT checkOcupacaoLimite CHECK (ocupacaoAtual >= 0 
 ALTER TABLE bilhete ADD CONSTRAINT bilhete_fk1 FOREIGN KEY (tipobilhete_tipobilheteid) REFERENCES tipobilhete(tipobilheteid);
 ALTER TABLE bilhete ADD CONSTRAINT bilhete_fk2 FOREIGN KEY (compra_compraid) REFERENCES compra(compraid);
 ALTER TABLE bilhete ADD CONSTRAINT checkValidade CHECK (validoAte >= validoDe);
-ALTER TABLE compra ADD CONSTRAINT compra_fk1 FOREIGN KEY (cliente_utilizador_utilizadorid) REFERENCES cliente(utilizador_utilizadorid);
+ALTER TABLE compra ADD CONSTRAINT compra_fk1 FOREIGN KEY (linha_linhaid) REFERENCES linha(linhaid);
+ALTER TABLE compra ADD CONSTRAINT compra_fk2 FOREIGN KEY (cliente_utilizador_utilizadorid) REFERENCES cliente(utilizador_utilizadorid);
 ALTER TABLE preco ADD CONSTRAINT preco_fk1 FOREIGN KEY (tipobilhete_tipobilheteid) REFERENCES tipobilhete(tipobilheteid);
 ALTER TABLE linha ADD UNIQUE (nome);
 ALTER TABLE linha ADD CONSTRAINT checkHorario CHECK (horaFechar > horaAbertura);
@@ -174,5 +176,9 @@ ALTER TABLE tipobilhete ADD UNIQUE (nome);
 ALTER TABLE admin ADD CONSTRAINT admin_fk1 FOREIGN KEY (utilizador_utilizadorid) REFERENCES utilizador(utilizadorid);
 ALTER TABLE compra_transacao ADD CONSTRAINT compra_transacao_fk1 FOREIGN KEY (compra_compraid) REFERENCES compra(compraid);
 ALTER TABLE compra_transacao ADD CONSTRAINT compra_transacao_fk2 FOREIGN KEY (transacao_transacaoid) REFERENCES transacao(transacaoid);
-
-
+ALTER TABLE compra
+ADD COLUMN linha_linhaid BIGINT;
+ALTER TABLE compra
+ADD CONSTRAINT compra_fk_linha
+FOREIGN KEY (linha_linhaid)
+REFERENCES linha(linhaid);
