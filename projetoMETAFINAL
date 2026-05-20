@@ -558,7 +558,6 @@ def get_lines_next():
 ##########################################################
 ## ENDPOINT 9 – WALLET TOPUP
 ## POST /dbproj/wallet/topup
-## CORRIGIDO: FOR UPDATE antes de atualizar saldo
 ##########################################################
 
 @app.route('/dbproj/wallet/topup', methods=['POST'])
@@ -613,7 +612,6 @@ def charge_wallet():
 ##########################################################
 ## ENDPOINT 10 – PURCHASE TICKET
 ## POST /dbproj/purchase
-## CORRIGIDO: travel_date validado e verificado na BD
 ##########################################################
 
 @app.route('/dbproj/purchase', methods=['POST'])
@@ -643,7 +641,7 @@ def purchase_ticket():
         conn = db_connection()
         cur = conn.cursor()
 
-        # 1. Obter preço e tipo de bilhete
+        # Obter preço e tipo de bilhete
         cur.execute("""
             SELECT p.preco, t.tipobilheteid, t.categoria
             FROM preco p
@@ -661,12 +659,12 @@ def purchase_ticket():
         tipo_id   = result[1]
         categoria = result[2]
 
-        # 2. Verificar que a linha existe
+        # Verificar que a linha existe
         cur.execute("SELECT linhaid FROM linha WHERE linhaid = %s", (p['line_id'],))
         if not cur.fetchone():
             return flask.jsonify({"status": 404, "errors": "Linha não encontrada"}), 404
 
-        # 3. Verificar que existe viagem nessa linha na data indicada
+        #  Verificar que existe viagem nessa linha na data indicada
         cur.execute("""
             SELECT viagemid FROM viagem
             WHERE linha_linhaid = %s
@@ -677,7 +675,7 @@ def purchase_ticket():
         if not cur.fetchone():
             return flask.jsonify({"status": 400, "errors": f"Não existe viagem para a linha {p['line_id']} na data {travel_date}"}), 400
 
-        # 4. Verificar promoção ativa para esta linha + tipo
+        # Verificar promoção ativa para esta linha + tipo
         cur.execute("""
             SELECT desconto FROM promocao
             WHERE linha_linhaid = %s
@@ -690,7 +688,7 @@ def purchase_ticket():
         if promo:
             preco = round(preco * (1 - float(promo[0]) / 100), 2)
 
-        # 5. INSERT na compra — o trigger debita o saldo automaticamente
+        # INSERT na compra — o trigger debita o saldo automaticamente
         cur.execute("""
             INSERT INTO compra (datacompra, precofinal, estado, cliente_utilizador_utilizadorid, linha_linhaid)
             VALUES (CURRENT_TIMESTAMP, %s, 'Concluida', %s, %s)
@@ -698,7 +696,7 @@ def purchase_ticket():
         """, (preco, user_id, p['line_id']))
         compra_id = cur.fetchone()[0]
 
-        # 6. Calcular validade conforme categoria do bilhete
+        # Calcular validade conforme categoria do bilhete
         if 'monthly' in categoria.lower():
             validade = timedelta(days=30)
         elif 'daily' in categoria.lower():
@@ -756,7 +754,7 @@ def use_ticket(ticket_id):
         conn = db_connection()
         cur = conn.cursor()
 
-        # 1. Verificar que o bilhete pertence ao cliente e obter a linha
+        # Verificar que o bilhete pertence ao cliente e obter a linha
         cur.execute("""
             SELECT b.bilheteid, b.estado, b.validode, b.validoate, c.linha_linhaid
             FROM bilhete b
@@ -778,7 +776,6 @@ def use_ticket(ticket_id):
         if estado != 'Valido':
             return flask.jsonify({"status": 400, "errors": f"Bilhete não está válido (estado: {estado})"}), 400
 
-        # Normalizar para naive datetime
         used_at_dt = datetime.strptime(p['used_at'], "%Y-%m-%d %H:%M:%S")
 
         if valido_de is not None and hasattr(valido_de, 'tzinfo') and valido_de.tzinfo is not None:
@@ -789,7 +786,7 @@ def use_ticket(ticket_id):
         if not (valido_de <= used_at_dt <= valido_ate):
             return flask.jsonify({"status": 400, "errors": "Bilhete fora do período de validade"}), 400
 
-        # 2. Verificar viagem disponível na mesma linha do bilhete
+        # Verificar viagem disponível na mesma linha do bilhete
         cur.execute("""
             SELECT v.viagemid, v.ocupacaoatual, v.capacidademax
             FROM viagem v
@@ -810,13 +807,13 @@ def use_ticket(ticket_id):
         if ocupacao >= capacidade:
             return flask.jsonify({"status": 400, "errors": "Viagem sem capacidade disponível"}), 400
 
-        # 3. Registar validação
+        # Registar validação
         cur.execute("""
             INSERT INTO validacao (usadoa, estacao_estacaoid, bilhete_bilheteid, viagem_viagemid)
             VALUES (%s::timestamp, %s, %s, %s)
         """, (p['used_at'], p['station_id'], ticket_id, viagem_id))
 
-        # 4. Incrementar ocupação
+        # Incrementar ocupação
         cur.execute("""
             UPDATE viagem SET ocupacaoatual = ocupacaoatual + 1 WHERE viagemid = %s
         """, (viagem_id,))
