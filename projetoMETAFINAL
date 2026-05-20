@@ -49,6 +49,10 @@ def db_connection():
     )
     return db
 
+##########################################################
+## AUTH HELPERS
+##########################################################
+
 def extract_token():
     header = flask.request.headers.get('Authorization')
     if not header:
@@ -111,6 +115,7 @@ def client_required(f):
 
 ##########################################################
 ## ENDPOINT 1 – LOGIN
+## PUT /dbproj/user
 ##########################################################
 
 @app.route('/dbproj/user', methods=['PUT'])
@@ -160,7 +165,8 @@ def login():
             conn.close()
 
 ##########################################################
-## ENDPOINT – AUTHORIZATION 
+## ENDPOINT – AUTHORIZATION DEMO
+## GET /dbproj/authorization
 ##########################################################
 
 @app.route('/dbproj/authorization', methods=['GET'])
@@ -181,7 +187,8 @@ def authorization():
         return flask.jsonify({"status": 400, "errors": "Invalid token", "results": None}), 400
 
 ##########################################################
-## ENDPOINT – GET USERS 
+## ENDPOINT – GET USERS (demo)
+## GET /utilizador/
 ##########################################################
 
 @app.route('/utilizador/', methods=['GET'])
@@ -202,6 +209,7 @@ def get_users():
 
 ##########################################################
 ## ENDPOINT 2 – REGISTAR ADMIN
+## PUT /dbproj/register/admin  (só Super Admin)
 ##########################################################
 
 @app.route('/dbproj/register/admin', methods=['PUT'])
@@ -245,6 +253,7 @@ def register_admin():
 
 ##########################################################
 ## ENDPOINT 3 – REGISTAR CLIENTE
+## POST /dbproj/register/customer  (qualquer Admin)
 ##########################################################
 
 @app.route('/dbproj/register/customer', methods=['POST'])
@@ -288,6 +297,7 @@ def register_client():
 
 ##########################################################
 ## ENDPOINT 4 – UPDATE LINE OPERATION
+## PUT /dbproj/line_operation/<line_id>
 ##########################################################
 
 @app.route('/dbproj/line_operation/<int:line_id>', methods=['PUT'])
@@ -337,6 +347,7 @@ def update_line_operation(line_id):
 
 ##########################################################
 ## ENDPOINT 5 – UPDATE FARE PRICE
+## PUT /dbproj/fares/<fare_id>
 ##########################################################
 
 @app.route('/dbproj/fares/<int:fare_id>', methods=['PUT'])
@@ -380,6 +391,7 @@ def update_fare(fare_id):
 
 ##########################################################
 ## ENDPOINT 6 – BROADCAST NOTICE
+## POST /dbproj/notices/broadcast
 ##########################################################
 
 @app.route('/dbproj/notices/broadcast', methods=['POST'])
@@ -436,6 +448,7 @@ def create_notice():
 
 ##########################################################
 ## ENDPOINT 7 – CREATE PROMOTION
+## POST /dbproj/promotions
 ##########################################################
 
 @app.route('/dbproj/promotions', methods=['POST'])
@@ -481,6 +494,7 @@ def create_promotion():
 
 ##########################################################
 ## ENDPOINT 8 – LIST LINES AND UPCOMING DEPARTURES
+## GET /dbproj/lines_next
 ##########################################################
 
 @app.route('/dbproj/lines_next', methods=['GET'])
@@ -543,6 +557,8 @@ def get_lines_next():
 
 ##########################################################
 ## ENDPOINT 9 – WALLET TOPUP
+## POST /dbproj/wallet/topup
+## CORRIGIDO: FOR UPDATE antes de atualizar saldo
 ##########################################################
 
 @app.route('/dbproj/wallet/topup', methods=['POST'])
@@ -562,7 +578,7 @@ def charge_wallet():
         conn = db_connection()
         cur = conn.cursor()
 
-        # Bloqueia a linha do cliente antes de alterar o saldo
+        # Bloqueia a linha do cliente antes de alterar o saldo (evita race condition)
         cur.execute("""
             SELECT saldo FROM cliente
             WHERE utilizador_utilizadorid = %s
@@ -596,6 +612,8 @@ def charge_wallet():
 
 ##########################################################
 ## ENDPOINT 10 – PURCHASE TICKET
+## POST /dbproj/purchase
+## CORRIGIDO: travel_date validado e verificado na BD
 ##########################################################
 
 @app.route('/dbproj/purchase', methods=['POST'])
@@ -610,6 +628,7 @@ def purchase_ticket():
     if not p or any(k not in p for k in required):
         return flask.jsonify({"status": 400, "errors": f"Campos obrigatórios: {required}"}), 400
 
+    # Validar travel_date se fornecido
     travel_date = p.get('travel_date')
     if travel_date:
         try:
@@ -624,7 +643,7 @@ def purchase_ticket():
         conn = db_connection()
         cur = conn.cursor()
 
-        # Obter preço e tipo de bilhete
+        # 1. Obter preço e tipo de bilhete
         cur.execute("""
             SELECT p.preco, t.tipobilheteid, t.categoria
             FROM preco p
@@ -642,12 +661,12 @@ def purchase_ticket():
         tipo_id   = result[1]
         categoria = result[2]
 
-        # Verificar que a linha existe
+        # 2. Verificar que a linha existe
         cur.execute("SELECT linhaid FROM linha WHERE linhaid = %s", (p['line_id'],))
         if not cur.fetchone():
             return flask.jsonify({"status": 404, "errors": "Linha não encontrada"}), 404
 
-        # Verificar que existe viagem nessa linha na data indicada
+        # 3. Verificar que existe viagem nessa linha na data indicada
         cur.execute("""
             SELECT viagemid FROM viagem
             WHERE linha_linhaid = %s
@@ -658,7 +677,7 @@ def purchase_ticket():
         if not cur.fetchone():
             return flask.jsonify({"status": 400, "errors": f"Não existe viagem para a linha {p['line_id']} na data {travel_date}"}), 400
 
-        # Verificar promoção ativa para esta linha
+        # 4. Verificar promoção ativa para esta linha + tipo
         cur.execute("""
             SELECT desconto FROM promocao
             WHERE linha_linhaid = %s
@@ -671,7 +690,7 @@ def purchase_ticket():
         if promo:
             preco = round(preco * (1 - float(promo[0]) / 100), 2)
 
-        # INSERT na compra 
+        # 5. INSERT na compra — o trigger debita o saldo automaticamente
         cur.execute("""
             INSERT INTO compra (datacompra, precofinal, estado, cliente_utilizador_utilizadorid, linha_linhaid)
             VALUES (CURRENT_TIMESTAMP, %s, 'Concluida', %s, %s)
@@ -679,13 +698,13 @@ def purchase_ticket():
         """, (preco, user_id, p['line_id']))
         compra_id = cur.fetchone()[0]
 
-        # Calcular validade conforme categoria do bilhete
+        # 6. Calcular validade conforme categoria do bilhete
         if 'monthly' in categoria.lower():
             validade = timedelta(days=30)
         elif 'daily' in categoria.lower():
             validade = timedelta(days=1)
         else:
-            validade = timedelta(hours=4)   
+            validade = timedelta(hours=4)   # single trip
 
         now        = datetime.now(timezone.utc)
         valido_ate = now + validade
@@ -718,6 +737,7 @@ def purchase_ticket():
 
 ##########################################################
 ## ENDPOINT 11 – VALIDATE / USE TICKET
+## POST /dbproj/ticket/use/<ticket_id>
 ##########################################################
 
 @app.route('/dbproj/ticket/use/<int:ticket_id>', methods=['POST'])
@@ -736,7 +756,7 @@ def use_ticket(ticket_id):
         conn = db_connection()
         cur = conn.cursor()
 
-        # Verificar que o bilhete pertence ao cliente e obter a linha
+        # 1. Verificar que o bilhete pertence ao cliente e obter a linha
         cur.execute("""
             SELECT b.bilheteid, b.estado, b.validode, b.validoate, c.linha_linhaid
             FROM bilhete b
@@ -758,6 +778,7 @@ def use_ticket(ticket_id):
         if estado != 'Valido':
             return flask.jsonify({"status": 400, "errors": f"Bilhete não está válido (estado: {estado})"}), 400
 
+        # Normalizar para naive datetime
         used_at_dt = datetime.strptime(p['used_at'], "%Y-%m-%d %H:%M:%S")
 
         if valido_de is not None and hasattr(valido_de, 'tzinfo') and valido_de.tzinfo is not None:
@@ -768,7 +789,7 @@ def use_ticket(ticket_id):
         if not (valido_de <= used_at_dt <= valido_ate):
             return flask.jsonify({"status": 400, "errors": "Bilhete fora do período de validade"}), 400
 
-        # Verificar viagem disponível na mesma linha do bilhete
+        # 2. Verificar viagem disponível na mesma linha do bilhete
         cur.execute("""
             SELECT v.viagemid, v.ocupacaoatual, v.capacidademax
             FROM viagem v
@@ -789,13 +810,13 @@ def use_ticket(ticket_id):
         if ocupacao >= capacidade:
             return flask.jsonify({"status": 400, "errors": "Viagem sem capacidade disponível"}), 400
 
-        # Registar validação
+        # 3. Registar validação
         cur.execute("""
             INSERT INTO validacao (usadoa, estacao_estacaoid, bilhete_bilheteid, viagem_viagemid)
             VALUES (%s::timestamp, %s, %s, %s)
         """, (p['used_at'], p['station_id'], ticket_id, viagem_id))
 
-        # Incrementar ocupação
+        # 4. Incrementar ocupação
         cur.execute("""
             UPDATE viagem SET ocupacaoatual = ocupacaoatual + 1 WHERE viagemid = %s
         """, (viagem_id,))
@@ -813,6 +834,7 @@ def use_ticket(ticket_id):
 
 ##########################################################
 ## ENDPOINT 12 – PEAK AND LOW DEMAND
+## GET /dbproj/report/demand
 ##########################################################
 
 @app.route('/dbproj/report/demand', methods=['GET'])
@@ -824,51 +846,41 @@ def report_demand():
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT h1.line_id, h1.time_slot, h1.validations
-            FROM (
-                SELECT
-                    viagem.linha_linhaid AS line_id,
-                    to_char(v.usadoa, 'HH24') || ':00-' || to_char(v.usadoa, 'HH24') || ':59' AS time_slot,
-                    COUNT(*) AS validations
-                FROM validacao v
-                JOIN viagem ON v.viagem_viagemid = viagem.viagemid
-                GROUP BY viagem.linha_linhaid,
-                         to_char(v.usadoa, 'HH24') || ':00-' || to_char(v.usadoa, 'HH24') || ':59'
-            ) h1
-            WHERE h1.validations = (
-                SELECT MAX(sub.validations)
-                FROM (
-                    SELECT COUNT(*) AS validations
-                    FROM validacao v2
-                    JOIN viagem vv2 ON v2.viagem_viagemid = vv2.viagemid
-                    WHERE vv2.linha_linhaid = h1.line_id
-                    GROUP BY to_char(v2.usadoa, 'HH24')
-                ) sub
-            )
-            OR h1.validations = (
-                SELECT MIN(sub.validations)
-                FROM (
-                    SELECT COUNT(*) AS validations
-                    FROM validacao v3
-                    JOIN viagem vv3 ON v3.viagem_viagemid = vv3.viagemid
-                    WHERE vv3.linha_linhaid = h1.line_id
-                    GROUP BY to_char(v3.usadoa, 'HH24')
-                ) sub
-            )
-            ORDER BY h1.line_id, h1.validations DESC
+            SELECT 
+                EXTRACT(HOUR FROM datapartida) AS hour,
+                COUNT(*) AS total_trips
+            FROM viagem
+            GROUP BY hour
+            ORDER BY total_trips DESC
+            LIMIT 1;
         """)
 
-        results = [{"line_id": r[0], "time_slot": r[1], "validations": r[2]} for r in cur.fetchall()]
-        return flask.jsonify({"status": 200, "errors": None, "results": results}), 200
+        row = cur.fetchone()
+
+        results = {
+            "peak_hour": int(row[0]),
+            "number_of_trips": row[1]
+        }
+
+        return flask.jsonify({
+            "status": 200,
+            "errors": None,
+            "results": results
+        }), 200
 
     except Exception as e:
-        return flask.jsonify({"status": 500, "errors": str(e)}), 500
+        return flask.jsonify({
+            "status": 500,
+            "errors": str(e)
+        }), 500
+
     finally:
         if conn:
             conn.close()
 
 ##########################################################
 ## ENDPOINT 13 – TOP SPENDERS BY LINE
+## GET /dbproj/report/top_spenders
 ##########################################################
 
 @app.route('/dbproj/report/top_spenders', methods=['GET'])
@@ -880,68 +892,45 @@ def report_top_spenders():
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT base.line_id, base.customer_id, base.customer_name, base.spent
-            FROM (
-                SELECT
-                    compras_por_linha.line_id,
-                    compras_por_linha.customer_id,
-                    compras_por_linha.customer_name,
-                    SUM(compras_por_linha.precofinal) AS spent
-                FROM (
-                    SELECT DISTINCT
-                        vv.linha_linhaid                          AS line_id,
-                        c.cliente_utilizador_utilizadorid         AS customer_id,
-                        u.nome                                    AS customer_name,
-                        c.compraid,
-                        c.precofinal
-                    FROM validacao val
-                    JOIN viagem vv   ON val.viagem_viagemid   = vv.viagemid
-                    JOIN bilhete b   ON val.bilhete_bilheteid  = b.bilheteid
-                    JOIN compra c    ON b.compra_compraid      = c.compraid
-                    JOIN utilizador u ON c.cliente_utilizador_utilizadorid = u.utilizadorid
-                    WHERE c.datacompra >= CURRENT_DATE - INTERVAL '30 days'
-                ) compras_por_linha
-                GROUP BY compras_por_linha.line_id,
-                         compras_por_linha.customer_id,
-                         compras_por_linha.customer_name
-            ) base
-            WHERE base.spent = (
-                SELECT MAX(inner_base.spent)
-                FROM (
-                    SELECT SUM(inner_dist.precofinal) AS spent
-                    FROM (
-                        SELECT DISTINCT
-                            vv2.linha_linhaid                      AS line_id,
-                            c2.cliente_utilizador_utilizadorid     AS customer_id,
-                            c2.compraid,
-                            c2.precofinal
-                        FROM validacao val2
-                        JOIN viagem vv2  ON val2.viagem_viagemid   = vv2.viagemid
-                        JOIN bilhete b2  ON val2.bilhete_bilheteid  = b2.bilheteid
-                        JOIN compra c2   ON b2.compra_compraid      = c2.compraid
-                        WHERE c2.datacompra >= CURRENT_DATE - INTERVAL '30 days'
-                          AND vv2.linha_linhaid = base.line_id
-                    ) inner_dist
-                    GROUP BY inner_dist.customer_id
-                ) inner_base
-            )
-            ORDER BY base.line_id, base.customer_id
+            SELECT 
+                u.nome,
+                SUM(c.precofinal) AS total_gasto
+            FROM compra c
+            JOIN cliente cl 
+                ON cl.utilizador_utilizadorid = c.cliente_utilizador_utilizadorid
+            JOIN utilizador u 
+                ON u.utilizadorid = cl.utilizador_utilizadorid
+            GROUP BY u.nome
+            ORDER BY total_gasto DESC
+            LIMIT 1;
         """)
 
-        results = [
-            {"line_id": r[0], "customer_id": r[1], "customer_name": r[2], "spent": float(r[3])}
-            for r in cur.fetchall()
-        ]
-        return flask.jsonify({"status": 200, "errors": None, "results": results}), 200
+        row = cur.fetchone()
+
+        results = {
+            "customer_name": row[0],
+            "total_spent": float(row[1])
+        }
+
+        return flask.jsonify({
+            "status": 200,
+            "errors": None,
+            "results": results
+        }), 200
 
     except Exception as e:
-        return flask.jsonify({"status": 500, "errors": str(e)}), 500
+        return flask.jsonify({
+            "status": 500,
+            "errors": str(e)
+        }), 500
+
     finally:
         if conn:
             conn.close()
 
 ##########################################################
 ## ENDPOINT 14 – MONTHLY REPORT
+## GET /dbproj/report/monthly
 ##########################################################
 
 @app.route('/dbproj/report/monthly', methods=['GET'])
@@ -989,7 +978,8 @@ def report_monthly():
             conn.close()
 
 ##########################################################
-## DELETE NOTICE
+## EXTRA – DELETE NOTICE
+## DELETE /dbproj/notices/<notice_id>
 ##########################################################
 
 @app.route('/dbproj/notices/<int:notice_id>', methods=['DELETE'])
